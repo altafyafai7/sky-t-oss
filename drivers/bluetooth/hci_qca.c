@@ -1652,7 +1652,8 @@ static int qca_setup(struct hci_uart *hu)
 	enum qca_btsoc_type soc_type = qca_soc_type(hu);
 	const char *firmware_name = qca_get_firmware_name(hu);
 	int ret;
-	struct qca_btsoc_version ver;
+	u32 ver;
+	struct qca_btsoc_version v;
 
 	ret = qca_check_speeds(hu);
 	if (ret)
@@ -1705,9 +1706,10 @@ retry:
 			return ret;
 	}
 
+	memcpy(&v, &ver, sizeof(v));
 	bt_dev_info(hdev, "QCA controller version 0x%08x",
-		    (le32_to_cpu(ver.soc_id) << 16) |
-		    (le16_to_cpu(ver.rom_ver) & 0x0000ffff));
+		    (le32_to_cpu(v.soc_id) << 16) |
+		    (le16_to_cpu(v.rom_ver) & 0x0000ffff));
 
 	/* Setup patch / NVM configurations */
 	ret = qca_uart_setup(hdev, qca_baudrate, soc_type, ver,

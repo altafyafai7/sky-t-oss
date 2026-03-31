@@ -14,7 +14,7 @@
 
 #define VERSION "0.1"
 
-int qca_read_soc_version(struct hci_dev *hdev, struct qca_btsoc_version *ver,
+int qca_read_soc_version(struct hci_dev *hdev, u32 *ver,
 			 enum qca_btsoc_type soc_type)
 {
 	struct sk_buff *skb;
@@ -22,7 +22,8 @@ int qca_read_soc_version(struct hci_dev *hdev, struct qca_btsoc_version *ver,
 	char cmd;
 	int err = 0;
 	u8 event_type = HCI_EV_VENDOR;
-	u8 rlen = sizeof(*edl) + sizeof(*ver);
+	struct qca_btsoc_version v;
+	u8 rlen = sizeof(*edl) + sizeof(v);
 	u8 rtype = EDL_APP_VER_RES_EVT;
 
 	bt_dev_dbg(hdev, "QCA Version Request");
@@ -69,18 +70,19 @@ int qca_read_soc_version(struct hci_dev *hdev, struct qca_btsoc_version *ver,
 	}
 
 	if (soc_type >= QCA_WCN3991)
-		memmove(&edl->data, &edl->data[1], sizeof(*ver));
+		memmove(&edl->data, &edl->data[1], sizeof(v));
 
-	memcpy(ver, edl->data, sizeof(*ver));
+	memcpy(&v, edl->data, sizeof(v));
+	memcpy(ver, &v, sizeof(v));
 
 	bt_dev_info(hdev, "QCA Product ID   :0x%08x",
-		    le32_to_cpu(ver->product_id));
+		    le32_to_cpu(v.product_id));
 	bt_dev_info(hdev, "QCA SOC Version  :0x%08x",
-		    le32_to_cpu(ver->soc_id));
+		    le32_to_cpu(v.soc_id));
 	bt_dev_info(hdev, "QCA ROM Version  :0x%08x",
-		    le16_to_cpu(ver->rom_ver));
+		    le16_to_cpu(v.rom_ver));
 	bt_dev_info(hdev, "QCA Patch Version:0x%08x",
-		    le16_to_cpu(ver->patch_ver));
+		    le16_to_cpu(v.patch_ver));
 
 out:
 	kfree_skb(skb);
@@ -449,18 +451,21 @@ int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 EXPORT_SYMBOL_GPL(qca_set_bdaddr_rome);
 
 int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
-		   enum qca_btsoc_type soc_type, struct qca_btsoc_version ver,
+		   enum qca_btsoc_type soc_type, u32 ver,
 		   const char *firmware_name)
 {
 	struct qca_fw_config config;
 	int err;
 	u8 rom_ver = 0;
 	u32 soc_ver;
+	struct qca_btsoc_version v;
 
 	bt_dev_dbg(hdev, "QCA setup on UART");
 
-	soc_ver = (le32_to_cpu(ver.soc_id) << 16) |
-		  (le16_to_cpu(ver.rom_ver) & 0x0000ffff);
+	memcpy(&v, &ver, sizeof(v));
+
+	soc_ver = (le32_to_cpu(v.soc_id) << 16) |
+		  (le16_to_cpu(v.rom_ver) & 0x0000ffff);
 
 	config.user_baud_rate = baudrate;
 
